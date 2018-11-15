@@ -1,0 +1,4 @@
+type 'make' to compile the program
+make run INPUT=path_to_input_file to run it
+
+to use a custom test article for the demo, just change the input paths and recompile
