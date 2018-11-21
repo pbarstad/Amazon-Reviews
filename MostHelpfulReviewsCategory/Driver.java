@@ -25,11 +25,18 @@ import java.util.HashMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
+import com.google.gson.*;
 
 public class Driver {
 
     public static class CategoryLoader
-    {//                                          TODO this needs to output an id_num -> helpfullness score
+    {
+        public static class Review
+        {
+            int[] helpful = new int[2];
+        }
+
+        //                                          TODO this needs to output an id_num -> helpfullness score
         public static class CategoryMapper extends Mapper<Object, Text, IntWritable, FloatWritable>
         {
 
@@ -43,7 +50,10 @@ public class Driver {
                 if(strValue.length() == 0)
                     return;
 
-                System.out.println(strValue);
+                Gson g = new Gson();
+                Review r = g.fromJson(strValue, Review.class);
+                System.out.println("Helpful: [" + r.helpful[0] + ", " + r.helpful[1] + "]");
+
 //                strValue = strValue.substring(cur);
 //
 //                StringTokenizer itr = new StringTokenizer(strValue);
