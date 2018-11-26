@@ -25,16 +25,21 @@ import java.util.HashMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
+import com.google.gson.*;
 
 public class Driver {
 
     public static class CategoryLoader
-    {//                                          TODO this needs to output an id_num -> helpfullness score
+    {
+        public static class Review
+        {
+            int[] helpful = new int[2];
+        }
+
         public static class CategoryMapper extends Mapper<Object, Text, IntWritable, FloatWritable>
         {
-
-            //IntWritable one = new IntWritable(1);
-            //private Text word = new Text();
+            // dummy key that increments each write so that reducer will be called correct number of times
+            int reviewNum = 0;
             public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
                 // Parse the input
                 String strValue = value.toString();
@@ -43,31 +48,37 @@ public class Driver {
                 if(strValue.length() == 0)
                     return;
 
-                System.out.println(strValue);
-//                strValue = strValue.substring(cur);
-//
-//                StringTokenizer itr = new StringTokenizer(strValue);
-//
-//                while (itr.hasMoreTokens()) {
-//                    Text word = new Text();
-//                    String temp = itr.nextToken();
-//
-//                    // clean up for profiles
-//                    temp = temp.toLowerCase();
-//                    temp = temp.replaceAll("[^a-zA-Z0-9]", "");
-//
-//                    if(!temp.isEmpty())
-//                    {
-//                        word.set(temp);
-//                        context.write(new DociGram(word, docID), one);
-//                    }
-//                }
+                Gson g = new Gson();
+                Review r = g.fromJson(strValue, Review.class);
+                float helpful_percent = (float)r.helpful[0] / (float)r.helpful[1];
+
+                if(r.helpful[1] == 0)
+                    return;
+
+                context.write(new IntWritable(reviewNum++), new FloatWritable(helpful_percent));
             }
         }
 
         public static class CategoryReducer extends Reducer<IntWritable, FloatWritable, IntWritable, FloatWritable>
         {
+            float average_helpfulness = 0;
+            int num_reviews = 0;
 
+            @Override
+            public void reduce(IntWritable key, Iterable<FloatWritable> values, Context context) throws IOException, InterruptedException {
+                // calculate the running average
+                ++num_reviews;
+                // only one value here so just get next()
+                float cur_score = values.iterator().next().get();
+                average_helpfulness += cur_score;
+                //average_helpfulness = average_helpfulness / num_reviews;
+            }
+
+            @Override
+            protected void cleanup(Context context) throws IOException, InterruptedException{
+                // write the total average
+                context.write(new IntWritable(num_reviews), new FloatWritable(average_helpfulness / num_reviews));
+            }
         }
 
 
