@@ -1,5 +1,3 @@
-//package pa2;
-
 import java.io.IOException;
 import java.util.StringTokenizer;
 import org.apache.hadoop.conf.Configuration;
@@ -27,205 +25,80 @@ import java.util.HashMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
+import com.google.gson.*;
 
 public class Driver {
 
-    /*
-      Class to store <Unigram, DocumentID> as a key
-    */
-    public static class Review implements WritableComparable<Review> {
-      //IntWritable docID;
-      //Text unigram;
-      Text category; FloatWritable overallScore; FloatWritable helpfulScore; Text review;
-
-      public Review() {
-        overallScore = new FloatWritable();
-        helpfulScore = new FloatWritable();
-        category = new Text();
-        review = new Text();
-      }
-
-      public Review(FloatWritable overall, FloatWritable helpful, Text cat, Text rev)
-      {
-          overallScore = overall;
-          helpfulScore = helpful;
-          category = cat;
-          review = rev;
-      }
-
-      public Review(Review that) {
-        this.overallScore = new FloatWritable(that.overallScore.get());
-        this.helpfulScore = new FloatWritable(that.helpfulScore.get());
-        this.category = new Text(that.category.toString());
-        this.review = new Text(that.review.toString());
-      }
-
-      public void set(FloatWritable overall, FloatWritable helpful, Text cat, Text rev) {
-        this.overallScore = overall;
-        this.helpfulScore = helpful;
-        this.category = cat;
-        this.review = rev;
-      }
-
-      public FloatWritable getOverall() {
-        return this.overallScore;
-      }
-
-			public FloatWritable getHelpful() {
-        return this.helpfulScore;
-      }
-
-      public Text getCategory() {
-        return this.category;
-      } 
-
-			public Text getReview() {
-        return this.review;
-      }
-
-      public void write(DataOutput out) throws IOException {
-        overallScore.write(out);
-        helpfulScore.write(out);
-        category.write(out);
-        review.write(out);
-      }
-
-      public void readFields(DataInput in) throws IOException {
-        overallScore.readFields(in);
-        helpfulScore.readFields(in);
-        category.readFields(in);
-        review.readFields(in);
-      }
-
-      public int compareTo(Review that) {
-        if(that == null)
-          return 0;
-
-        // First compare by term
-        /*int docComp = this.unigram.compareTo(that.unigram);
-        if(docComp == 0)
-        {
-          // same term, compare by docID
-          return this.docID.compareTo(that.docID);
-
-        }*/
-        // in the same document
-        return 1;
-      }
-
-      /*public String toString() {
-        return unigram.toString() + "\t" + docID.toString() + "\t";
-      } */
+    public static class Review {
+        int[] helpful = new int[2];
+        float overall;
+        String summary;
     }
 
-    public static class TermFreq
-{
-    public static int run_me(String input) throws Exception {
-        Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "Amazon Analysis");
-        job.setJarByClass(TermFreq.class);
-        job.setMapperClass(TokenizerMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(OverallHelpReduce.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(1);
-        FileInputFormat.addInputPath(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path("analysisOut"));
-        return job.waitForCompletion(true) ? 0 : 1;
-    }
-
-    public static class TokenizerMapper extends Mapper<Object, Text, Text, Text>{
-
-      //IntWritable one = new IntWritable(1);
-      //private Text word = new Text();
-      public void map(Object key, Text value, Context context) throws IOException, InterruptedException { 
-        // Parse the input
-        String strValue = value.toString();
-
-        // skip empty strings
-        if(strValue.length() == 0)
-          return;
-
-				context.write(new Text(strValue), new Text(""));
-        // remove title information
-        /*IntWritable docID = new IntWritable();
-        String strID = "";
-        int carrotCount = 0;
-        int cur = 0;
-        while(carrotCount < 2)
+    public static class CategoryLoader
+    {//                                          TODO this needs to output an id_num -> helpfullness score
+        public static class CategoryMapper extends Mapper<Object, Text, FloatWritable, FloatWritable>
         {
-            if(cur > strValue.length() -1)
-                return;
-          if(strValue.charAt(cur) == '>')
-          {
-            carrotCount++;
-            if(carrotCount == 1)
-            {
-              String temp = strValue.substring(cur+1);
-              int stopPoint = temp.indexOf('<');
-              strID = temp.substring(0,stopPoint);
-              docID.set(Integer.parseInt(strID));
+
+            //IntWritable one = new IntWritable(1);
+            private Text word = new Text();
+            public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+                // Parse the input
+                String strValue = value.toString();
+
+                // skip empty strings
+                if(strValue.length() == 0)
+                    return;
+
+                Gson g = new Gson();
+                Review r = g.fromJson(strValue, Review.class);
+                
+                if(r.helpful[1] != 0) { //don't analyze that review if their is no helpful data
+                    context.write(new FloatWritable(r.overall), new FloatWritable((float)r.helpful[0]/(float)r.helpful[1]));
+                }    
+                //keep track of how many entries have no helpfulness rating?
+
             }
-          }
-          ++cur;
-        }
-        strValue = strValue.substring(cur);
-
-        StringTokenizer itr = new StringTokenizer(strValue);
-
-        while (itr.hasMoreTokens()) {
-          Text word = new Text();
-          String temp = itr.nextToken();
-
-          // clean up for profiles
-          temp = temp.toLowerCase();
-          temp = temp.replaceAll("[^a-zA-Z0-9]", "");
-
-          if(!temp.isEmpty())
-          {
-            word.set(temp);
-            context.write(new DociGram(word, docID), one);
-          }
-      } */
-    }
-    }
-    public static class OverallHelpReduce extends Reducer<Text, Text, Text, Text> {
-        //private SortedMap<DociGram, FloatWritable> freqs = new TreeMap<DociGram, FloatWritable>();
-        //float maxTF = 0;
-        //@Override
-        public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-          //int sum = 0;
-          for(Text temp : values)
-          {
-            context.write(key, temp);
-          }
-
-          /*IntWritable value = new IntWritable(sum);
-          // put into hashmap and record largest value
-          freqs.put(new DociGram(key), new FloatWritable(sum));
-          if(sum > maxTF)
-            maxTF = sum;
         }
 
-        @Override
-        protected void cleanup(Context context) throws IOException, InterruptedException{
-          for(Map.Entry<DociGram,FloatWritable> cur: freqs.entrySet())
-          {
-                                                // get augmented TF here
-              context.write(cur.getKey(), new FloatWritable(0.5f + 0.5f*(cur.getValue().get() / maxTF)));
-          }
-        }*/
-    }
-}
+        public static class CategoryReducer extends Reducer<FloatWritable, FloatWritable, FloatWritable, FloatWritable>
+        {
+            //private SortedMap<DociGram, FloatWritable> freqs = new TreeMap<DociGram, FloatWritable>();
+            //float maxTF = 0;
+            //@Override
+            public void reduce(FloatWritable key, Iterable<FloatWritable> values, Context context) throws IOException, InterruptedException {
+                float sum = 0;
+                float total = 0;
+                for(FloatWritable temp : values) {
+                    sum += temp.get();
+                    total++;
+                    //context.write(key, temp);
+                }
+                
+                context.write(key, new FloatWritable(sum/total));
 
-  public static void main(String[] args) throws Exception
-  {
-    // get Term Frequencies and Inverse Documnet Frequencies
-    TermFreq.run_me(args[0]);
-    //IDF.run_me(args[0]);
-    //TFIDF.run_me();
-    //SentenceSummary.run_me(args[0]);
-}
-}
+            }
+        }
+
+
+        public static int run_me(String input) throws Exception {
+            Configuration conf = new Configuration();
+            Job job = Job.getInstance(conf, "CategoryLoader");
+            job.setJarByClass(CategoryLoader.class);
+            job.setMapperClass(CategoryMapper.class);
+            //job.setCombinerClass(IntSumReducer.class);
+            job.setReducerClass(CategoryReducer.class);
+            job.setOutputKeyClass(FloatWritable.class);
+            job.setOutputValueClass(FloatWritable.class);
+            job.setNumReduceTasks(1);
+            FileInputFormat.addInputPath(job, new Path(input));
+            FileOutputFormat.setOutputPath(job, new Path("amazonOutput"));
+            return job.waitForCompletion(true) ? 0 : 1;
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        // get Term Frequencies and Inverse Documnet Frequencies
+        CategoryLoader.run_me(args[0]);
+    }
 }
