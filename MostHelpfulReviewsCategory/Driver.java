@@ -38,6 +38,8 @@ public class Driver {
 
         public static class CategoryMapper extends Mapper<Object, Text, IntWritable, FloatWritable>
         {
+            // dummy key that increments each write so that reducer will be called correct number of times
+            int reviewNum = 0;
             public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
                 // Parse the input
                 String strValue = value.toString();
@@ -53,8 +55,7 @@ public class Driver {
                 if(r.helpful[1] == 0)
                     return;
 
-                context.write(new IntWritable(1), new FloatWritable(helpful_percent));
-                System.out.println("WRITING FROM MAPPER: " + 1 + " -- " + helpful_percent);
+                context.write(new IntWritable(reviewNum++), new FloatWritable(helpful_percent));
             }
         }
 
@@ -70,17 +71,14 @@ public class Driver {
                 // only one value here so just get next()
                 float cur_score = values.iterator().next().get();
                 average_helpfulness += cur_score;
-                average_helpfulness = average_helpfulness / num_reviews;
-
-                System.out.println("Cur average: " + average_helpfulness + " -- Num Reviews: " + num_reviews);
-                //context.write(new IntWritable(num_reviews), new FloatWritable(average_helpfulness));
+                //average_helpfulness = average_helpfulness / num_reviews;
             }
 
-//            @Override
-//            protected void cleanup(Context context) throws IOException, InterruptedException{
-//                // write the total average
-//                context.write(new IntWritable(num_reviews), new FloatWritable(average_helpfulness));
-//            }
+            @Override
+            protected void cleanup(Context context) throws IOException, InterruptedException{
+                // write the total average
+                context.write(new IntWritable(num_reviews), new FloatWritable(average_helpfulness / num_reviews));
+            }
         }
 
 
