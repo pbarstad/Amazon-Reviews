@@ -37,13 +37,13 @@ public class Driver {
     public static class Review {
         int[] helpful = new int[2];
         float overall;
-        String reviewText
+        String reviewText;
         //String summary;
     }
 
     public static class CategoryLoader {//                                          TODO this needs to output an id_num -> helpfullness score
 
-        public static class CategoryMapper extends Mapper<Object, Text, FloatWritable, FloatWritable> {
+        public static class CategoryMapper extends Mapper<Object, Text, Text, FloatWritable> {
 
             //IntWritable one = new IntWritable(1);
             private Text word = new Text();
@@ -60,26 +60,38 @@ public class Driver {
                 Review r = g.fromJson(strValue, Review.class);
 
 
-                if (r.reviewText.length() <= 30) {
-                    context.write(new Text("30 charcters or less"), new FloatWritable(r.overall);
-                } else if (r.reviewText.length() <= 60) {
-                    context.write(new Text("60 charcters or less"), new FloatWritable(r.overall);
-                } else if (r.reviewText.length() <= 90) {
-                    context.write(new Text("90 charcters or less"), new FloatWritable(r.overall);
-                } else if (r.reviewText.length() <= 120) {
-                    context.write(new Text("120 charcters or less"), new FloatWritable(r.overall);
-                } else {
-                    context.write(new Text("more than 120 charcters"), new FloatWritable(r.overall);
+                if (r.reviewText.length() <= 120) {
+                    context.write(new Text("120 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 150) {
+                    context.write(new Text("150 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 180) {
+                    context.write(new Text("180 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 240) {
+                    context.write(new Text("240 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 300) {
+                    context.write(new Text("300 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 380) {
+                    context.write(new Text("380 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 500) {
+                    context.write(new Text("500 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 700) {
+                    context.write(new Text("700 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 950) {
+                    context.write(new Text("950 characters or less"), new FloatWritable(r.overall));
+                } else if (r.reviewText.length() <= 1300) {
+                    context.write(new Text("1300 characters or less"), new FloatWritable(r.overall));
+                }  else {
+                    context.write(new Text("1300 characters or more"), new FloatWritable(r.overall));
                 }
 
             }
         }
 
-        public static class CategoryReducer extends Reducer<FloatWritable, FloatWritable, FloatWritable, FloatWritable> {
+        public static class CategoryReducer extends Reducer<Text, FloatWritable, Text, FloatWritable> {
             //private SortedMap<DociGram, FloatWritable> freqs = new TreeMap<DociGram, FloatWritable>();
             //float maxTF = 0;
             //@Override
-            public void reduce(FloatWritable key, Iterable<FloatWritable> values, Context context) throws IOException, InterruptedException {
+            public void reduce(Text key, Iterable<FloatWritable> values, Context context) throws IOException, InterruptedException {
                 float sum = 0;
                 float total = 0;
                 for (FloatWritable temp : values) {
@@ -89,6 +101,7 @@ public class Driver {
                 }
 
                 context.write(key, new FloatWritable(sum / total));
+                context.write(key, new FloatWritable(total));
 
             }
         }
@@ -101,7 +114,7 @@ public class Driver {
             job.setMapperClass(CategoryMapper.class);
             //job.setCombinerClass(IntSumReducer.class);
             job.setReducerClass(CategoryReducer.class);
-            job.setOutputKeyClass(FloatWritable.class);
+            job.setOutputKeyClass(Text.class);
             job.setOutputValueClass(FloatWritable.class);
             job.setNumReduceTasks(1);
             FileInputFormat.addInputPath(job, new Path(input));
